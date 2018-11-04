@@ -48,6 +48,7 @@ object SparkConversions {
     // other
     StringType,
     BooleanType,
+    DateType,
     NullType
   )
 
@@ -60,6 +61,7 @@ object SparkConversions {
           case CTInteger => Some(LongType)
           case CTBoolean => Some(BooleanType)
           case CTFloat => Some(DoubleType)
+          case CTDateTime => Some(DateType)
           case _: CTNode => Some(LongType)
           case _: CTRelationship => Some(LongType)
           case CTList(CTVoid) => Some(ArrayType(NullType, containsNull = true))
@@ -94,6 +96,8 @@ object SparkConversions {
       case CTFloatOrNull => StructField(column, DoubleType, nullable = true)
       case CTString => StructField(column, StringType, nullable = false)
       case CTStringOrNull => StructField(column, StringType, nullable = true)
+      case CTDateTime => StructField(column, DateType, nullable = false)
+      case CTDateTimeOrNull => StructField(column, DateType, nullable = true)
 
       case CTList(elementType) =>
         val elementStructField = elementType.toStructField(column)
@@ -134,6 +138,7 @@ object SparkConversions {
         case BooleanType => Some(CTBoolean)
         case BinaryType => Some(CTAny)
         case DoubleType => Some(CTFloat)
+        case DateType => Some(CTDateTime)
         case ArrayType(NullType, _) => Some(CTList(CTVoid))
         case ArrayType(elemType, containsNull) =>
           elemType.toCypherType(containsNull).map(CTList)

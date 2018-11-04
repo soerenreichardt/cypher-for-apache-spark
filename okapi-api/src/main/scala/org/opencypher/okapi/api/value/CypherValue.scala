@@ -26,6 +26,7 @@
  */
 package org.opencypher.okapi.api.value
 
+import java.sql.Date
 import java.util.Objects
 
 import org.opencypher.okapi.api.value.CypherValue.CypherEntity._
@@ -258,6 +259,8 @@ object CypherValue {
 
   implicit class CypherFloat(val value: Double) extends AnyVal with CypherNumber[Double]
 
+  implicit class CypherDateTime(val value: Date) extends AnyVal with PrimitiveCypherValue[Date]
+
   implicit class CypherMap(val value: Map[String, CypherValue]) extends AnyVal with MaterialCypherValue[Map[String, CypherValue]] {
     override def unwrap: Map[String, Any] = value.map { case (k, v) => k -> v.unwrap }
 
@@ -461,5 +464,7 @@ object CypherValue {
   object CypherInteger extends UnapplyValue[Long, CypherInteger]
 
   object CypherFloat extends UnapplyValue[Double, CypherFloat]
+
+  object CypherDateTime extends UnapplyValue[Date, CypherDateTime]
 
 }

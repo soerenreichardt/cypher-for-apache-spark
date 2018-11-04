@@ -189,6 +189,10 @@ case object CTString extends MaterialDefiniteCypherLeafType {
   override def name = "STRING"
 }
 
+case object CTDateTime extends MaterialDefiniteCypherLeafType {
+  override def name = "DATETIME"
+}
+
 case object CTMap extends MaterialDefiniteCypherType with MaterialDefiniteCypherType.DefaultOrNull {
 
   self =>
@@ -653,6 +657,7 @@ private[okapi] object MaterialDefiniteCypherType {
       case CTAny => CTAnyOrNull
       case CTNumber => CTNumberOrNull
       case CTFloat => CTFloatOrNull
+      case CTDateTime => CTDateTimeOrNull
       case CTMap => CTMapOrNull
       case CTPath => CTPathOrNull
     }
@@ -694,6 +699,12 @@ case object CTFloatOrNull extends NullableDefiniteCypherType {
   override def name: String = CTFloat + "?"
 
   override def material: CTFloat.type = CTFloat
+}
+
+case object CTDateTimeOrNull extends NullableDefiniteCypherType {
+  override def name: String = CTDateTime + "?"
+
+  override def material: CTDateTime.type  = CTDateTime
 }
 
 case object CTMapOrNull extends NullableDefiniteCypherType {

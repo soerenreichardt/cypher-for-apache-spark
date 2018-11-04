@@ -282,6 +282,12 @@ object SchemaTyper {
         result <- recordAndUpdate(expr -> computedType)
       } yield result
 
+    case expr: FunctionInvocation if expr.name == "datetime" =>
+      for {
+        argExprs <- pure(expr.arguments)
+        result <- recordAndUpdate(expr -> CTDateTimeOrNull)
+      } yield result
+
     case expr: FunctionInvocation if expr.function == UnresolvedFunction =>
       UnresolvedFunctionSignatureTyper(expr)
 
@@ -534,6 +540,7 @@ object SchemaTyper {
               FunctionSignature(Seq(CTFloat), CTInteger),
               FunctionSignature(Seq(CTInteger), CTInteger)
             ))
+
         case f: TypeSignatures =>
           val set = f.signatures.flatMap(_.convert).toSet
           pure(set)
