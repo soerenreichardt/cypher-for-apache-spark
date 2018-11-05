@@ -118,6 +118,9 @@ object SparkSQLExprMapper {
         case NullLit(ct) =>
           NULL_LIT.cast(ct.toSparkType.get)
 
+        case dt@DateTimeLit(expr) =>
+          ???
+
         case l: Lit[_] => functions.lit(l.v)
 
         // predicates

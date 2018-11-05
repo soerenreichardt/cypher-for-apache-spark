@@ -28,15 +28,14 @@ package org.opencypher.okapi.ir.impl
 
 import org.opencypher.okapi.api.types._
 import org.opencypher.okapi.impl.exception.NotImplementedException
-import org.opencypher.okapi.ir.api.expr._
 import org.opencypher.okapi.ir.api._
+import org.opencypher.okapi.ir.api.expr._
 import org.opencypher.okapi.ir.impl.FunctionUtils._
 import org.opencypher.v9_0.expressions.{RegexMatch, functions}
 import org.opencypher.v9_0.util.Ref
 import org.opencypher.v9_0.{expressions => ast}
 
 import scala.language.implicitConversions
-import scala.util.parsing.combinator.token.StdTokens
 
 final class ExpressionConverter(implicit context: IRBuilderContext) {
 
@@ -114,7 +113,10 @@ final class ExpressionConverter(implicit context: IRBuilderContext) {
     case ast.Divide(lhs, rhs) =>
       Divide(convert(lhs), convert(rhs))(typings(e))
 
-    // Functions
+    // Functions`
+    case funcInv: ast.FunctionInvocation if funcInv.name == "datetime" =>
+      DateTimeLit(convert(funcInv.args.head))(CTDateTime)
+
     case funcInv: ast.FunctionInvocation =>
       funcInv.convertFunction(funcInv.args.map(convert), typings(e))
     case _: ast.CountStar =>
