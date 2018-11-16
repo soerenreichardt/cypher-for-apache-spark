@@ -26,6 +26,8 @@
  */
 package org.opencypher.spark.impl
 
+import java.sql.Date
+
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Column, DataFrame, functions}
 import org.opencypher.okapi.api.types._
@@ -119,7 +121,8 @@ object SparkSQLExprMapper {
           NULL_LIT.cast(ct.toSparkType.get)
 
         case dt@DateTimeLit(expr) =>
-          ???
+          val e = expr.asSparkSQLExpr
+          functions.lit(expr.asSparkSQLExpr).cast(DataTypes.DateType)
 
         case l: Lit[_] => functions.lit(l.v)
 

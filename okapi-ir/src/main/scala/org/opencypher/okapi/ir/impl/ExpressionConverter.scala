@@ -113,7 +113,7 @@ final class ExpressionConverter(implicit context: IRBuilderContext) {
     case ast.Divide(lhs, rhs) =>
       Divide(convert(lhs), convert(rhs))(typings(e))
 
-    // Functions`
+    // Functions
     case funcInv: ast.FunctionInvocation if funcInv.name == "datetime" =>
       DateTimeLit(convert(funcInv.args.head))(CTDateTime)
 
