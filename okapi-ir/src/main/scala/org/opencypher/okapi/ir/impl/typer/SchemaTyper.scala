@@ -36,7 +36,7 @@ import org.atnos.eff.all._
 import org.opencypher.okapi.api.schema.Schema
 import org.opencypher.okapi.api.types.CypherType.joinMonoid
 import org.opencypher.okapi.api.types._
-import org.opencypher.okapi.ir.impl.parse.functions.Timestamp
+import org.opencypher.okapi.ir.impl.parse.functions.{FunctionLookup, Timestamp}
 import org.opencypher.okapi.ir.impl.parse.rewriter.ExistsPattern
 import org.opencypher.okapi.ir.impl.typer.SignatureConverter._
 import org.opencypher.v9_0.expressions._
@@ -282,18 +282,14 @@ object SchemaTyper {
         result <- recordAndUpdate(expr -> computedType)
       } yield result
 
-    case expr: FunctionInvocation if expr.name == "datetime" =>
-      expr.arguments match {
-        case Seq(first) =>
-          for {
-            _ <- process[R](first)
-            result <- recordAndUpdate(expr -> CTDateTimeOrNull)
-          } yield result
-      }
-//      for {
-//        argExprs <- pure(expr.arguments)
-//        result <- recordAndUpdate(expr -> CTDateTimeOrNull)
-//      } yield result
+//    case expr: FunctionInvocation if expr.name == "datetime" =>
+//      expr.arguments match {
+//        case Seq(first) =>
+//          for {
+//            _ <- process[R](first)
+//            result <- recordAndUpdate(expr -> CTDateTimeOrNull)
+//          } yield result
+//      }
 
     case expr: FunctionInvocation if expr.function == UnresolvedFunction =>
       UnresolvedFunctionSignatureTyper(expr)
@@ -493,12 +489,9 @@ object SchemaTyper {
       expr: Expression,
       args: Seq[(Expression, CypherType)]
     ): Eff[R, Set[FunctionSignature]] = expr match {
-      case f: FunctionInvocation => f.name match {
-        case Timestamp.name =>
-          val set = Timestamp.signatures.flatMap(_.convert).toSet
-          pure(set)
-        case _ =>
-          wrong[R, TyperError](UnsupportedExpr(expr)) >> pure(Set.empty)
+      case f: FunctionInvocation => {
+        val signatures = FunctionLookup(f.name).flatMap(_.convert).toSet
+        pure(signatures)
       }
     }
   }

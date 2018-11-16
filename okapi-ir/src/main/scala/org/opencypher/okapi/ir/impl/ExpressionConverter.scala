@@ -115,7 +115,7 @@ final class ExpressionConverter(implicit context: IRBuilderContext) {
 
     // Functions
     case funcInv: ast.FunctionInvocation if funcInv.name == "datetime" =>
-      DateTimeLit(convert(funcInv.args.head))(CTDateTime)
+      DateTime(convert(funcInv.args.head))(CTDateTime)
 
     case funcInv: ast.FunctionInvocation =>
       funcInv.convertFunction(funcInv.args.map(convert), typings(e))

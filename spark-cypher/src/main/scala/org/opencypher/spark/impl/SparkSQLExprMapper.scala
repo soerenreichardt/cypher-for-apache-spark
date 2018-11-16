@@ -120,8 +120,7 @@ object SparkSQLExprMapper {
         case NullLit(ct) =>
           NULL_LIT.cast(ct.toSparkType.get)
 
-        case dt@DateTimeLit(expr) =>
-          val e = expr.asSparkSQLExpr
+        case dt@DateTime(expr) =>
           functions.lit(expr.asSparkSQLExpr).cast(DataTypes.DateType)
 
         case l: Lit[_] => functions.lit(l.v)
