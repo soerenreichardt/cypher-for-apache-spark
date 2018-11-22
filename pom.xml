@@ -6,7 +6,7 @@
 
   <groupId>org.opencypher</groupId>
   <artifactId>okapi</artifactId>
-  <version>0.2.1-SNAPSHOT</version>
+  <version>0.2.2-SNAPSHOT</version>
 
   <name>Okapi - openCypher query compilation API and pipeline</name>
   <packaging>pom</packaging>
@@ -111,13 +111,13 @@
     <resources>
       <resource>
         <directory>${basedir}/src/main/resources</directory>
-        <filtering>true</filtering>
+        <filtering>false</filtering>
       </resource>
     </resources>
     <testResources>
       <testResource>
         <directory>${basedir}/src/test/resources</directory>
-        <filtering>true</filtering>
+        <filtering>false</filtering>
       </testResource>
     </testResources>
 

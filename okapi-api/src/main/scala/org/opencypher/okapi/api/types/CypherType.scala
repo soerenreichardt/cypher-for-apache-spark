@@ -27,8 +27,12 @@
 package org.opencypher.okapi.api.types
 
 import cats.Monoid
+import cats.instances.all._
+import cats.syntax.semigroup._
 import org.opencypher.okapi.api.graph.QualifiedGraphName
+import org.opencypher.okapi.api.types.CypherType._
 import org.opencypher.okapi.api.value.CypherValue._
+import org.opencypher.okapi.impl.types.CypherTypeParser
 import upickle.default._
 
 import scala.language.postfixOps
@@ -45,49 +49,7 @@ object CypherType {
     * @see {{{org.opencypher.okapi.api.types.CypherType#name}}}
     */
   def fromName(name: String): Option[CypherType] = {
-    def extractLabels(s: String, typ: String, sep: String): Set[String] = {
-      val regex = s"""$typ\\(:(.+)\\).?""".r
-      s match {
-        case regex(l) => l.split(sep).toSet
-        case _ => Set.empty[String]
-      }
-    }
-
-    val graphRegex = """\@ (.+)\\??\$""".r
-
-    def extractGraph(s: String): Option[QualifiedGraphName] = s match {
-      case graphRegex(g) => Some(QualifiedGraphName(g))
-      case _ => None
-    }
-
-    val noneNullType = name match {
-      case "STRING" | "STRING?" => Some(CTString)
-      case "INTEGER" | "INTEGER?" => Some(CTInteger)
-      case "FLOAT" | "FLOAT?" => Some(CTFloat)
-      case "NUMBER" | "NUMBER?" => Some(CTNumber)
-      case "BOOLEAN" | "BOOLEAN?" => Some(CTBoolean)
-      case "ANY" | "ANY?" => Some(CTAny)
-      case "VOID" | "VOID?" => Some(CTVoid)
-      case "NULL" | "NULL?" => Some(CTNull)
-      case "MAP" | "MAP?" => Some(CTMap)
-      case "PATH" | "PATH?" => Some(CTPath)
-      case "?" | "??" => Some(CTWildcard)
-
-      case node if node.startsWith("NODE") =>
-        Some(CTNode(extractLabels(node, "NODE", ":"), extractGraph(node)))
-
-      case rel if rel.startsWith("RELATIONSHIP") =>
-        Some(CTRelationship(extractLabels(rel, "RELATIONSHIP", """\|"""), extractGraph(rel)))
-
-      case list if list.startsWith("LIST") =>
-        CypherType
-          .fromName(list.replaceFirst("""LIST\?? OF """, ""))
-          .map(CTList)
-
-      case _ => None
-    }
-
-    noneNullType.map(ct => if (name == ct.name) ct else ct.nullable)
+   CypherTypeParser.parse(name)
   }
 
   implicit class TypeCypherValue(cv: CypherValue) {
@@ -98,7 +60,7 @@ object CypherType {
         case CypherFloat(_) => CTFloat
         case CypherInteger(_) => CTInteger
         case CypherString(_) => CTString
-        case CypherMap(_) => CTMap
+        case CypherMap(inner) => CTMap(inner.mapValues(_.cypherType))
         case CypherNode(_, labels, _) => CTNode(labels)
         case CypherRelationship(_, _, _, relType, _) => CTRelationship(relType)
         case CypherList(l) => CTList(l.map(_.cypherType).foldLeft[CypherType](CTVoid)(_.join(_)))
@@ -189,33 +151,33 @@ case object CTString extends MaterialDefiniteCypherLeafType {
   override def name = "STRING"
 }
 
-case object CTDateTime extends MaterialDefiniteCypherLeafType {
-  override def name = "DATETIME"
-}
+case class CTMap(innerTypes: Map[String, CypherType]) extends MaterialDefiniteCypherType with MaterialDefiniteCypherType.DefaultOrNull {
+  override def name = {
+    val innerNames = innerTypes.map {
+      case (key, valueType) => s"$key: ${valueType.name}"
+    }.mkString(", ")
 
-case object CTMap extends MaterialDefiniteCypherType with MaterialDefiniteCypherType.DefaultOrNull {
-
-  self =>
-
-  override def name = "MAP"
+    s"MAP($innerNames)"
+  }
 
   override def superTypeOf(other: CypherType): Ternary = other match {
-    case CTMap => True
-    case _: CTNode => True
-    case _: CTRelationship => True
+    case CTMap(otherInner) if innerTypes.keySet == otherInner.keySet =>
+      innerTypes.forall { case (key, value) => value.superTypeOf(otherInner(key)).isTrue }
     case CTWildcard => Maybe
     case CTVoid => True
     case _ => False
   }
 
   override def joinMaterially(other: MaterialCypherType): MaterialCypherType = other match {
-    case CTMap => self
-    case _: CTNode => self
-    case _: CTRelationship => self
-    case CTVoid => self
+    case CTMap(otherInnerTypes: Map[String, CypherType]) => CTMap(innerTypes |+| otherInnerTypes)
+    case CTVoid => this
     case CTWildcard => CTWildcard
     case _ => CTAny
   }
+}
+
+case object CTDateTime extends MaterialDefiniteCypherLeafType {
+  override def name = "DATETIME"
 }
 
 object CTNode extends CTNode(Set.empty, None) with Serializable {
@@ -248,9 +210,7 @@ sealed case class CTNode(
   }
 
   final override def joinMaterially(other: MaterialCypherType): MaterialCypherType = other match {
-    case CTMap => CTMap
     case CTNode(otherLabels, qgnOpt) => CTNode(labels intersect otherLabels, if (graph == qgnOpt) graph else None)
-    case _: CTRelationship => CTMap
     case CTVoid => self
     case CTWildcard => CTWildcard
     case _ => CTAny
@@ -300,7 +260,7 @@ sealed case class CTRelationship(
 
   final override def name: String =
     if (types.isEmpty) s"RELATIONSHIP$graphToString" else s"RELATIONSHIP(${
-      types.map(t => s"$t").mkString(":", "|", "")
+      types.map(t => s"$t").mkString(":", "|:", "")
     })$graphToString"
 
   final override def nullable: CTRelationshipOrNull =
@@ -316,13 +276,11 @@ sealed case class CTRelationship(
   }
 
   final override def joinMaterially(other: MaterialCypherType): MaterialCypherType = other match {
-    case CTMap => CTMap
     case CTRelationship(otherTypes, qgnOpt) =>
       if (types.isEmpty || otherTypes.isEmpty)
         CTRelationship(Set.empty[String], if (graph == qgnOpt) graph else None)
       else
         CTRelationship(types union otherTypes, if (graph == qgnOpt) graph else None)
-    case _: CTNode => CTMap
     case CTVoid => self
     case CTWildcard => CTWildcard
     case _ => CTAny
@@ -374,7 +332,7 @@ final case class CTList(elementType: CypherType) extends MaterialDefiniteCypherT
 
   override def withGraph(qgn: QualifiedGraphName): CypherType = copy(elementType = elementType.withGraph(qgn))
 
-  override def name = s"LIST OF $elementType"
+  override def name = s"LIST($elementType)"
 
   override def nullable =
     CTListOrNull(elementType)
@@ -410,7 +368,7 @@ final case class CTList(elementType: CypherType) extends MaterialDefiniteCypherT
 }
 
 final case class CTListOrNull(eltType: CypherType) extends NullableDefiniteCypherType {
-  override def name = s"LIST? OF $eltType"
+  override def name = s"LIST($eltType)?"
 
   override def material =
     CTList(eltType)
@@ -657,8 +615,8 @@ private[okapi] object MaterialDefiniteCypherType {
       case CTAny => CTAnyOrNull
       case CTNumber => CTNumberOrNull
       case CTFloat => CTFloatOrNull
+      case CTMap(inner) => CTMapOrNull(inner)
       case CTDateTime => CTDateTimeOrNull
-      case CTMap => CTMapOrNull
       case CTPath => CTPathOrNull
     }
   }
@@ -701,16 +659,16 @@ case object CTFloatOrNull extends NullableDefiniteCypherType {
   override def material: CTFloat.type = CTFloat
 }
 
+case class CTMapOrNull(innerTypes: Map[String, CypherType]) extends NullableDefiniteCypherType {
+  override def name: String = CTMap(innerTypes) + "?"
+
+  override def material: CTMap = CTMap(innerTypes)
+}
+
 case object CTDateTimeOrNull extends NullableDefiniteCypherType {
   override def name: String = CTDateTime + "?"
 
   override def material: CTDateTime.type  = CTDateTime
-}
-
-case object CTMapOrNull extends NullableDefiniteCypherType {
-  override def name: String = CTMap + "?"
-
-  override def material: CTMap.type = CTMap
 }
 
 case object CTPathOrNull extends NullableDefiniteCypherType {

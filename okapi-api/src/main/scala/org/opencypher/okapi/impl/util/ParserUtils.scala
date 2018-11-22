@@ -24,33 +24,38 @@
  * described as "implementation extensions to Cypher" or as "proposed changes to
  * Cypher that are not yet approved by the openCypher community".
  */
-package org.opencypher.spark.api.io.sql
+package org.opencypher.okapi.impl.util
 
-import org.apache.spark.sql.DataFrame
-import org.opencypher.spark.api.io.JdbcFormat
-import org.opencypher.spark.testing.fixture.H2Fixture
-import org.opencypher.spark.testing.utils.H2Utils._
+import fastparse.WhitespaceApi
 
-class H2SqlPropertyGraphDataSourceAcceptanceTest extends SqlPropertyGraphDataSourceAcceptanceTest with H2Fixture {
+object ParserUtils {
+  object ParsersForNoTrace {
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    createH2Database(sqlDataSourceConfig, databaseName)
+    import fastparse.all._
+
+    val newline: P[Unit] = P("\n" | "\r\n" | "\r" | "\f")
+    val whitespace: P[Unit] = P(" " | "\t" | newline)
+    val comment: P[Unit] = P("--" ~ (!newline ~ AnyChar).rep ~ newline)
+    val noTrace: P[Unit] = (comment | whitespace).rep
   }
 
-  override def afterAll(): Unit = {
-    dropH2Database(sqlDataSourceConfig, databaseName)
-    super.afterAll()
+  val Whitespace: WhitespaceApi.Wrapper = WhitespaceApi.Wrapper {
+    import fastparse.all._
+    NoTrace(ParsersForNoTrace.noTrace)
   }
 
-  override def sqlDataSourceConfig: SqlDataSourceConfig =
-    SqlDataSourceConfig(
-      storageFormat = JdbcFormat,
-      dataSourceName = dataSourceName,
-      jdbcDriver = Some("org.h2.Driver"),
-      jdbcUri = Some("jdbc:h2:mem:?user=sa&password=1234;DB_CLOSE_DELAY=-1")
-    )
+  import Whitespace._
+  import fastparse.noApi._
 
-  override def writeTable(df: DataFrame, tableName: String): Unit =
-    df.saveAsSqlTable(sqlDataSourceConfig, tableName)
+  implicit class RichParser[T](parser: fastparse.core.Parser[T, Char, String]) {
+    def entireInput: P[T] = parser ~ End
+  }
+
+  def keyword(k: String): P[Unit] = P(IgnoreCase(k))
+
+  val digit: P[Unit] = P(CharIn('0' to '9'))
+  val character: P[Unit] = P(CharIn('a' to 'z', 'A' to 'Z'))
+  val identifier: P[Unit] = P(character ~~ P(character | digit | "_").repX)
+  val escapedIdentifier: P[String] = P("`" ~ CharsWhile(_ != '`').! ~ "`")
+  val label: P[String] = P(":" ~ (identifier.! | escapedIdentifier))
 }
