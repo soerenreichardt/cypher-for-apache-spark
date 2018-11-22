@@ -41,7 +41,7 @@ class FunctionsBehaviour extends CAPSTestSuite with DefaultGraphInit {
   describe("datetime") {
 
     it("datetime") {
-      val result = caps.cypher("RETURN datetime('2012-10-09') AS time")
+      val result = caps.cypher("RETURN datetime({timezone:\"America/Los Angeles\"}) AS time")
       result.show
 //      val diff = result.records.asCaps.table.df.withColumn("diff", functions.date_add(functions.col("$  AUTOSTRING0 __ STRING __ DATETIME"), 15))
       val maps = result.records.toMaps

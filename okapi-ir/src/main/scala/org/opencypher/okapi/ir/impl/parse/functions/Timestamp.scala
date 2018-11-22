@@ -44,7 +44,8 @@ case object FunctionLookup {
   def apply(name: String): Vector[TypeSignature] = name match {
     case Timestamp.name => Timestamp.signatures
     case "datetime" => Vector(
-      TypeSignature(argumentTypes = Vector(CTString), outputType = CTDateTime)
+      TypeSignature(argumentTypes = Vector(CTString), outputType = CTDateTime),
+      TypeSignature(argumentTypes = Vector(CTMap), outputType = CTDateTime)
     )
     case _ => Vector.empty
   }
