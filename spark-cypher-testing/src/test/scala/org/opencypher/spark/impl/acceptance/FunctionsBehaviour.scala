@@ -53,6 +53,11 @@ class FunctionsBehaviour extends CAPSTestSuite with DefaultGraphInit {
       val result = caps.cypher("RETURN datetime({ year: 2015, month: 11, day: 11 })")
       result.show
     }
+
+    it("adds missing informations with default values") {
+      val result = caps.cypher("RETURN datetime({ year: 2015, month: 5 })")
+      result.show
+    }
   }
 
   describe("trim") {
