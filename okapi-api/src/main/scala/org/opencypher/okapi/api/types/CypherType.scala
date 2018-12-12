@@ -177,9 +177,27 @@ case class CTMap(innerTypes: Map[String, CypherType]) extends MaterialDefiniteCy
   }
 }
 
-case object CTDateTime extends MaterialDefiniteCypherLeafType {
+sealed trait TemporalInstantCypherType extends MaterialDefiniteCypherLeafType
+
+case object CTDateTime extends TemporalInstantCypherType {
   override def name = "DATETIME"
 }
+
+case object CTDate extends TemporalInstantCypherType {
+  override def name = "DATE"
+}
+
+//case object CTTime extends TemporalInstantCypherType {
+//  override def name = "TIME"
+//}
+//
+//case object CTLocalDateTime extends TemporalInstantCypherType {
+//  override def name = "LOCALDATETIME"
+//}
+//
+//case object CTLocalTime extends TemporalInstantCypherType {
+//  override def name = "LOCALTIME"
+//}
 
 object CTNode extends CTNode(Set.empty, None) with Serializable {
   def apply(labels: String*): CTNode =
@@ -618,6 +636,7 @@ private[okapi] object MaterialDefiniteCypherType {
       case CTFloat => CTFloatOrNull
       case CTMap(inner) => CTMapOrNull(inner)
       case CTDateTime => CTDateTimeOrNull
+      case CTDate => CTDateOrNull
       case CTPath => CTPathOrNull
     }
   }
@@ -670,6 +689,12 @@ case object CTDateTimeOrNull extends NullableDefiniteCypherType {
   override def name: String = CTDateTime + "?"
 
   override def material: CTDateTime.type  = CTDateTime
+}
+
+case object CTDateOrNull extends NullableDefiniteCypherType {
+  override def name: String = CTDate + "?"
+
+  override def material: CTDate.type = CTDate
 }
 
 case object CTPathOrNull extends NullableDefiniteCypherType {
