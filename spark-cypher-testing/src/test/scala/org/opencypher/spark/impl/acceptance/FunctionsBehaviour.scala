@@ -42,25 +42,50 @@ import scala.collection.JavaConverters._
 @DoNotDiscover
 class FunctionsBehaviour extends CAPSTestSuite with DefaultGraphInit {
 
-  describe("datetime") {
+  describe("date") {
 
-    it("returns a valid datetime") {
-      val result = caps.cypher("RETURN datetime(\"2015-06-24T12:50:35.556\") AS time")
-//      val result = caps.cypher("RETURN datetime(\"1-01-01\") AS time")
-      result.show
-//      val diff = result.records.asCaps.table.df.withColumn("diff", functions.date_add(functions.col("$  AUTOSTRING0 __ STRING __ DATETIME"), 15))
-      val maps = result.records.toMaps
-      ???
+    it("date()") {
+      caps.cypher("RETURN date('2010-10-10') AS time").records.toMaps should equal(
+        Bag(
+          CypherMap("time" -> java.sql.Date.valueOf("2010-10-10"))
+        )
+      )
     }
 
-    it("compares two datetimes" ) {
-      caps.cypher("RETURN datetime(\"2015-10-10\") < datetime(\"2015-10-12\") AS time").records.toMaps should equal(
+    it("compares two dates") {
+      caps.cypher("RETURN date(\"2015-10-10\") < date(\"2015-10-12\") AS time").records.toMaps should equal(
         Bag(
           CypherMap("time" -> true)
         )
       )
 
-      caps.cypher("RETURN datetime(\"2015-10-10\") > datetime(\"2015-10-12\") AS time").records.toMaps should equal(
+      caps.cypher("RETURN date(\"2015-10-10\") > date(\"2015-10-12\") AS time").records.toMaps should equal(
+        Bag(
+          CypherMap("time" -> false)
+        )
+      )
+    }
+  }
+
+  describe("datetime") {
+
+    it("returns a valid datetime") {
+      caps.cypher("RETURN datetime(\"2015-06-24T12:50:35.556\") AS time").records.toMaps should equal(
+        Bag(
+          CypherMap("time" -> java.sql.Timestamp.valueOf("2015-06-24 12:50:35.556"))
+        )
+      )
+
+    }
+
+    it("compares two datetimes" ) {
+      caps.cypher("RETURN datetime(\"2015-10-10T00:00:00\") < datetime(\"2015-10-12T00:00:00\") AS time").records.toMaps should equal(
+        Bag(
+          CypherMap("time" -> true)
+        )
+      )
+
+      caps.cypher("RETURN datetime(\"2015-10-10T00:00:00\") > datetime(\"2015-10-12T00:00:00\") AS time").records.toMaps should equal(
         Bag(
           CypherMap("time" -> false)
         )
