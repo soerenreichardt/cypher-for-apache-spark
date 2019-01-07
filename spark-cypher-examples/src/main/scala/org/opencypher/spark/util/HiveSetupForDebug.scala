@@ -55,7 +55,7 @@ object HiveSetupForDebug {
       .schema(structType)
       .load(datafile)
 
-    if (show) baseTable.show()
+//    if (show) baseTable.show()
 
     session.sql(s"DROP DATABASE IF EXISTS $databaseName CASCADE")
     session.sql(s"CREATE DATABASE $databaseName")

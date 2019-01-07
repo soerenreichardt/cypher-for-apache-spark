@@ -71,11 +71,11 @@ case class SqlPropertyGraphDataSource(
       case MonotonicallyIncreasingId => createMonotonicallyIncreasingIdForTables(nodeDataFrames, sourceIdKey)
     }
 
-    println("showing all node frames")
-    println(">>>>>>>>>>>>>>>>>>>>>>>>")
+//    println("showing all node frames")
+//    println(">>>>>>>>>>>>>>>>>>>>>>>>")
     val nodeTables = nodeDataFramesWithIds.map {
       case (nodeViewKey, nodeDf) =>
-        if (PrintDebug.isSet) nodeDf.show(30)
+//        if (PrintDebug.isSet) nodeDf.show(30)
         val nodeElementTypes = nodeViewKey.nodeType.elementTypes
         val columnsWithType = nodeColsWithCypherType(capsSchema, nodeElementTypes)
         val inputNodeMapping = createNodeMapping(nodeElementTypes, ddlGraph.nodeToViewMappings(nodeViewKey).propertyMappings)
@@ -86,7 +86,7 @@ case class SqlPropertyGraphDataSource(
 
         CAPSNodeTable.fromMapping(normalizedMapping, normalizedDf)
     }.toSeq
-    println("<<<<<<<<<<<<<<<<<<<<<<<<")
+//    println("<<<<<<<<<<<<<<<<<<<<<<<<")
 
     // Build CAPS relationship tables
     val relDataFrames = ddlGraph.edgeToViewMappings.map(evm => evm.key -> readTable(evm.view)).toMap
@@ -104,8 +104,8 @@ case class SqlPropertyGraphDataSource(
       val startNodeViewKey = edgeToViewMapping.startNode.nodeViewKey
       val endNodeViewKey = edgeToViewMapping.endNode.nodeViewKey
 
-      println(s"$relElementType start ids")
-      println(">>>>>>>>>>>>>>>>>>>>>>>>")
+//      println(s"$relElementType start ids")
+//      println(">>>>>>>>>>>>>>>>>>>>>>>>")
       val relsWithStartNodeId = idGenerationStrategy match {
         case HashBasedId =>
           // generate the start node id using the same hash parameters as for the corresponding node table
@@ -115,16 +115,16 @@ case class SqlPropertyGraphDataSource(
           val startNodeDf = nodeDataFramesWithIds(startNodeViewKey)
           val joined = joinNodeAndEdgeDf(startNodeDf, relDf, edgeToViewMapping.startNode.joinPredicates, sourceStartNodeKey)
 
-          if (PrintDebug.isSet) startNodeDf.show(30)
-          if (PrintDebug.isSet) relDf.show(30)
-          if (PrintDebug.isSet) joined.show(30)
+//          if (PrintDebug.isSet) startNodeDf.show(30)
+//          if (PrintDebug.isSet) relDf.show(30)
+//          if (PrintDebug.isSet) joined.show(30)
 
           joined
       }
-      println("<<<<<<<<<<<<<<<<<<<<<<<<")
+//      println("<<<<<<<<<<<<<<<<<<<<<<<<")
 
-      println(s"$relElementType end ids")
-      println(">>>>>>>>>>>>>>>>>>>>>>>>")
+//      println(s"$relElementType end ids")
+//      println(">>>>>>>>>>>>>>>>>>>>>>>>")
       val relsWithEndNodeId = idGenerationStrategy match {
         case HashBasedId =>
           // generate the end node id using the same hash parameters as for the corresponding node table
@@ -134,13 +134,13 @@ case class SqlPropertyGraphDataSource(
           val endNodeDf = nodeDataFramesWithIds(endNodeViewKey)
           val joined = joinNodeAndEdgeDf(endNodeDf, relsWithStartNodeId, edgeToViewMapping.endNode.joinPredicates, sourceEndNodeKey)
 
-          if (PrintDebug.isSet) relsWithStartNodeId.show(30)
-          if (PrintDebug.isSet) endNodeDf.show(30)
-          if (PrintDebug.isSet) joined.show(30)
+//          if (PrintDebug.isSet) relsWithStartNodeId.show(30)
+//          if (PrintDebug.isSet) endNodeDf.show(30)
+//          if (PrintDebug.isSet) joined.show(30)
 
           joined
       }
-      println("<<<<<<<<<<<<<<<<<<<<<<<<")
+//      println("<<<<<<<<<<<<<<<<<<<<<<<<")
 
       val columnsWithType = relColsWithCypherType(capsSchema, relElementType)
       val inputRelMapping = createRelationshipMapping(relElementType, edgeToViewMapping.propertyMappings)
@@ -188,6 +188,24 @@ case class SqlPropertyGraphDataSource(
       .withColumnRenamed(nodeIdColumnName, newNodeIdColumn)
     val edgeDfWithNodesJoined = namespacedEdgeDf
       .join(nodes, joinPredicate)
+
+    println("DEBUG")
+
+    val test = nodes.join(namespacedEdgeDf, joinPredicate)
+
+    println("nodes")
+    nodes.show
+    nodes.explain(true)
+
+    println("edges")
+    namespacedEdgeDf.show
+    namespacedEdgeDf.explain(true)
+
+    println(s"join edge -> node on ${joinPredicate.toString}")
+    edgeDfWithNodesJoined.show
+
+    println(s"join node -> edge ${joinPredicate.toString}")
+    test.show
 
     // original code:
 //    val edgeDfWithNodesJoined = namespacedNodeDf
@@ -403,6 +421,7 @@ case class SqlPropertyGraphDataSource(
     newIdColumn: String
   ): Map[T, DataFrame] = {
     val (elementViewKeys, dataFrames) = views.unzip
+    dataFrames.foreach(_.count)
     elementViewKeys.zip(addUniqueIds(dataFrames.toSeq, newIdColumn)).toMap
   }
 
