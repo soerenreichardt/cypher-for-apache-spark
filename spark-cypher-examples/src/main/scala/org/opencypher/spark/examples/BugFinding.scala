@@ -46,16 +46,7 @@ object JoinBug extends ConsoleApp {
     .option("header", "true")
     .load(datafile)
 
-  session.sql(s"DROP DATABASE IF EXISTS $databaseName CASCADE")
-  session.sql(s"CREATE DATABASE $databaseName")
-
-  baseTable.write.saveAsTable(s"$baseTableName")
-
-  val customers = session.sparkSession.sql(
-    s"""
-       | SELECT DISTINCT customerIdx, customerId, customerName
-       | FROM $baseTableName
-      """.stripMargin)
+  val customers = baseTable.select("customerIdx", "customerId", "customerName").distinct
 
 //  val customers = Seq(
 //    (1, "W9VU80OL52R", "Neta Whinnery"),
