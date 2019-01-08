@@ -41,23 +41,12 @@ object JoinBug extends ConsoleApp {
 
   val datafile = getClass.getResource("/customer-interactions/csv/debug.csv").toURI.getPath
 
-  val baseTable: DataFrame = session.sparkSession.read
-    .format("csv")
-    .option("header", "true")
-    .load(datafile)
+  val baseTable = Seq(
+    (3),
+    (3)
+  ).toDF("customerIdx")
 
   val customers = baseTable.select("customerIdx").distinct
-
-//  val customers = Seq(
-//    (1, "W9VU80OL52R", "Neta Whinnery"),
-//    (2, "W9VU80OL52R", "Neta Whinnery"),
-//    (0, "X5CO34AD98M", "Elsa Clukey"),
-//    (3, "R8RY34BW05P", "Wei Rolfe")
-//  ).toDF("customerIdx", "customerId", "customerName")
-
-//  val nodes = session.sparkSession.sql(s"SELECT * FROM customers.customers_SEED")
-//      .withColumn("id", functions.monotonically_increasing_id() + 0L)
-//      .withColumnRenamed("id", "target")
 
   val nodes = customers
     .withColumn("id", functions.monotonically_increasing_id() + 0L)
@@ -67,32 +56,14 @@ object JoinBug extends ConsoleApp {
   nodes.explain(true)
 
   val edges = Seq(
-    (0L, 0L),
-    (1L, 0L),
-    (2L, 0L),
-    (3L, 0L),
-    (4L, 0L),
-    (5L, 0L),
-    (6L, 1L),
-    (7L, 1L),
-    (8L, 1L),
-    (9L, 1L),
-    (10L, 2L),
-    (11L, 2L),
-    (12L, 2L),
-    (13L, 2L),
     (14L, 3L),
-    (15L, 3L),
-    (16L, 3L),
-    (17L, 3L)
+    (15L, 3L)
   ).toDF("edge_property_interactionId", "edge_property_customerIdx")
-    .withColumn("edge_id", functions.monotonically_increasing_id())
-    .withColumn("edge_source", functions.monotonically_increasing_id() + 100)
 
   val leftToRight: DataFrame = nodes.join(edges, nodes.col("customerIdx") === edges.col("edge_property_customerIdx"))
   val sortedCols = leftToRight.columns.sorted.toSeq
-  leftToRight.select(sortedCols.head, sortedCols.tail: _*).orderBy("edge_id").show()
+  leftToRight.select(sortedCols.head, sortedCols.tail: _*).show()
   val rightToLeft: DataFrame = edges.join(nodes, nodes.col("customerIdx") === edges.col("edge_property_customerIdx"))
-  rightToLeft.select(sortedCols.head, sortedCols.tail: _*).orderBy("edge_id").show()
+  rightToLeft.select(sortedCols.head, sortedCols.tail: _*).show()
 
 }
