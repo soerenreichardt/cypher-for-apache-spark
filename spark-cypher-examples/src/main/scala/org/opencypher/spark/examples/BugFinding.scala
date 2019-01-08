@@ -29,7 +29,7 @@ package org.opencypher.spark.examples
 import org.apache.spark.sql.{DataFrame, SparkSession, functions}
 import org.opencypher.spark.util.ConsoleApp
 
-object JoinBug extends ConsoleApp {
+object JoinBug extends App {
 
   val session =  SparkSession
     .builder()
@@ -43,15 +43,16 @@ object JoinBug extends ConsoleApp {
     (3)
   ).toDF("customerIdx")
 
-  val customers = baseTable.select("customerIdx").distinct
-
-  val nodes = customers
+  val nodes = baseTable.distinct
     .withColumn("id", functions.monotonically_increasing_id())
 
   nodes.show()
   nodes.explain(true)
 
-  val edges = baseTable.withColumnRenamed("customerIdx", "edge_property_customerIdx")
+  val edges = Seq(
+    (3),
+    (3)
+  ).toDF("edge_property_customerIdx")
 
   val leftToRight: DataFrame = nodes.join(edges, nodes.col("customerIdx") === edges.col("edge_property_customerIdx"))
   val sortedCols = leftToRight.columns.sorted.toSeq
