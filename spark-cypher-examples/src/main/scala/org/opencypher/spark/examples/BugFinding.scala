@@ -26,7 +26,6 @@
  */
 package org.opencypher.spark.examples
 
-import org.apache.spark.sql.types.{LongType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, functions}
 import org.opencypher.spark.api.CAPSSession
 import org.opencypher.spark.util.ConsoleApp
@@ -41,21 +40,10 @@ object JoinBug extends ConsoleApp {
   import session.sparkSession.sqlContext.implicits._
 
   val datafile = getClass.getResource("/customer-interactions/csv/debug.csv").toURI.getPath
-  val structType = StructType(Seq(
-    StructField("interactionId", LongType, nullable = false),
-    StructField("date", StringType, nullable = false),
-    StructField("customerIdx", LongType, nullable = false),
-    StructField("empNo", LongType, nullable = false),
-    StructField("empName", StringType, nullable = false),
-    StructField("type", StringType, nullable = false),
-    StructField("customerId", StringType, nullable = false),
-    StructField("customerName", StringType, nullable = false)
-  ))
 
   val baseTable: DataFrame = session.sparkSession.read
     .format("csv")
     .option("header", "true")
-    .schema(structType)
     .load(datafile)
 
   session.sql(s"DROP DATABASE IF EXISTS $databaseName CASCADE")
