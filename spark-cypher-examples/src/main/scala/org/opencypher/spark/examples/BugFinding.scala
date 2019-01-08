@@ -26,20 +26,17 @@
  */
 package org.opencypher.spark.examples
 
-import org.apache.spark.sql.{DataFrame, functions}
-import org.opencypher.spark.api.CAPSSession
+import org.apache.spark.sql.{DataFrame, SparkSession, functions}
 import org.opencypher.spark.util.ConsoleApp
 
 object JoinBug extends ConsoleApp {
 
-  val databaseName = "customers"
-  val baseTableName = s"$databaseName.csv_input"
-
-  implicit val session = CAPSSession.local()
-
-  import session.sparkSession.sqlContext.implicits._
-
-  val datafile = getClass.getResource("/customer-interactions/csv/debug.csv").toURI.getPath
+  val session =  SparkSession
+    .builder()
+    .master("local[*]")
+    .getOrCreate()
+  import session.sqlContext.implicits._
+  session.sparkContext.setLogLevel("error")
 
   val baseTable = Seq(
     (3),
