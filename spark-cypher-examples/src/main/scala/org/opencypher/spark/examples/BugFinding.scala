@@ -27,37 +27,22 @@
 package org.opencypher.spark.examples
 
 import org.apache.spark.sql.{DataFrame, SparkSession, functions}
-import org.opencypher.spark.util.ConsoleApp
 
 object JoinBug extends App {
 
-  val session =  SparkSession
-    .builder()
-    .master("local[*]")
-    .getOrCreate()
+  // Spark session setup
+  val session =  SparkSession.builder().master("local[*]").getOrCreate()
   import session.sqlContext.implicits._
   session.sparkContext.setLogLevel("error")
 
-  val baseTable = Seq(
-    (3),
-    (3)
-  ).toDF("customerIdx")
+  // Bug in Spark: "monotonically_increasing_id" is pushed down when it shouldn't be. Push down only happens when the
+  // DF containing the "monotonically_increasing_id" expression is on the left side of the join.
+  val baseTable = Seq((1), (1)).toDF("idx")
+  val distinctWithId = baseTable.distinct.withColumn("id", functions.monotonically_increasing_id())
+  val monotonicallyOnRight: DataFrame = baseTable.join(distinctWithId, "idx")
+  val monotonicallyOnLeft: DataFrame = distinctWithId.join(baseTable, "idx")
 
-  val nodes = baseTable.distinct
-    .withColumn("id", functions.monotonically_increasing_id())
-
-  nodes.show()
-  nodes.explain(true)
-
-  val edges = Seq(
-    (3),
-    (3)
-  ).toDF("edge_property_customerIdx")
-
-  val leftToRight: DataFrame = nodes.join(edges, nodes.col("customerIdx") === edges.col("edge_property_customerIdx"))
-  val sortedCols = leftToRight.columns.sorted.toSeq
-  leftToRight.select(sortedCols.head, sortedCols.tail: _*).show()
-  val rightToLeft: DataFrame = edges.join(nodes, nodes.col("customerIdx") === edges.col("edge_property_customerIdx"))
-  rightToLeft.select(sortedCols.head, sortedCols.tail: _*).show()
+  monotonicallyOnLeft.show // Wrong
+  monotonicallyOnRight.show // Ok
 
 }
