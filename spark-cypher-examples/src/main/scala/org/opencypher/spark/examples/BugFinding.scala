@@ -67,20 +67,6 @@ object JoinBug extends ConsoleApp {
   nodes.explain(true)
 
   val edges = Seq(
-    (0L, 0L),
-    (1L, 0L),
-    (2L, 0L),
-    (3L, 0L),
-    (4L, 0L),
-    (5L, 0L),
-    (6L, 1L),
-    (7L, 1L),
-    (8L, 1L),
-    (9L, 1L),
-    (10L, 2L),
-    (11L, 2L),
-    (12L, 2L),
-    (13L, 2L),
     (14L, 3L),
     (15L, 3L),
     (16L, 3L),
