@@ -75,37 +75,41 @@ object JoinBug extends ConsoleApp {
   createView(baseTableName, "has_customer_reps", false, "interactionId", "empNo")
   createView(baseTableName, "has_customers", false, "interactionId", "customerIdx")
 
-  val nodes = session.sparkSession.sql(s"SELECT * FROM $baseTableName").select(
-    "customerIdx",
-    "customerId",
-    "customerName"
-  )
-      .distinct
+  val nodes = session.sparkSession.sql(s"SELECT * FROM customers.customers_SEED")
       .withColumn("id", functions.monotonically_increasing_id() + 0L)
       .withColumnRenamed("id", "target")
 
   nodes.show()
   nodes.explain(true)
 
-//  val nodes = Seq(
-//    (1L),
-//    (2L)
-//  ).toDF( "node_customerIdx").withColumn("id", functions.monotonically_increasing_id())
-//    .withColumnRenamed("id", "target")
+  val edges = Seq(
+    (0L, 0L),
+    (1L, 0L),
+    (2L, 0L),
+    (3L, 0L),
+    (4L, 0L),
+    (5L, 0L),
+    (6L, 1L),
+    (7L, 1L),
+    (8L, 1L),
+    (9L, 1L),
+    (10L, 2L),
+    (11L, 2L),
+    (12L, 2L),
+    (13L, 2L),
+    (14L, 3L),
+    (15L, 3L),
+    (16L, 3L),
+    (17L, 3L)
+  ).toDF("edge_property_interactionId", "edge_property_customerIdx")
+    .withColumn("edge_id", functions.monotonically_increasing_id())
+    .withColumn("edge_source", functions.monotonically_increasing_id() + 100)
 
-//  val edges = Seq(
-//    (6L, 1L),
-//    (7L, 1L),
-//    (8L, 1L)
-//  ).toDF("interactionId", "rel_customerIdx")
-//    .withColumn("edge_id", functions.monotonically_increasing_id())
-//    .filter(functions.not(functions.isnull(functions.col("interactionId"))))
-//
-//  val leftToRight: DataFrame = nodes.join(edges, nodes.col("node_customerIdx") === edges.col("rel_customerIdx"))
-//  val sortedCols = leftToRight.columns.sorted.toSeq
-//  leftToRight.select(sortedCols.head, sortedCols.tail: _*).orderBy("edge_id").show()
-//  val rightToLeft: DataFrame = edges.join(nodes, nodes.col("node_customerIdx") === edges.col("rel_customerIdx"))
-//  rightToLeft.select(sortedCols.head, sortedCols.tail: _*).orderBy("edge_id").show()
+  val leftToRight: DataFrame = nodes.join(edges, nodes.col("customerIdx") === edges.col("edge_property_customerIdx"))
+  val sortedCols = leftToRight.columns.sorted.toSeq
+  leftToRight.select(sortedCols.head, sortedCols.tail: _*).orderBy("edge_id").show()
+  val rightToLeft: DataFrame = edges.join(nodes, nodes.col("customerIdx") === edges.col("edge_property_customerIdx"))
+  rightToLeft.select(sortedCols.head, sortedCols.tail: _*).orderBy("edge_id").show()
 
 }
 
