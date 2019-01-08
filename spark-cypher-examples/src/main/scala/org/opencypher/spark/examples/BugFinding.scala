@@ -43,6 +43,6 @@ object JoinBug extends App {
   val monotonicallyOnLeft: DataFrame = distinctWithId.join(baseTable, "idx")
 
   monotonicallyOnLeft.show // Wrong
-  monotonicallyOnRight.show // Ok
+  monotonicallyOnRight.show // Ok in Spark 2.2.2 - also wrong in Spark 2.4.0
 
 }
