@@ -49,16 +49,12 @@ object JoinBug extends ConsoleApp {
   val customers = baseTable.select("customerIdx").distinct
 
   val nodes = customers
-    .withColumn("id", functions.monotonically_increasing_id() + 0L)
-    .withColumnRenamed("id", "target")
+    .withColumn("id", functions.monotonically_increasing_id())
 
   nodes.show()
   nodes.explain(true)
 
-  val edges = Seq(
-    (14L, 3L),
-    (15L, 3L)
-  ).toDF("edge_property_interactionId", "edge_property_customerIdx")
+  val edges = baseTable.withColumnRenamed("customerIdx", "edge_property_customerIdx")
 
   val leftToRight: DataFrame = nodes.join(edges, nodes.col("customerIdx") === edges.col("edge_property_customerIdx"))
   val sortedCols = leftToRight.columns.sorted.toSeq
