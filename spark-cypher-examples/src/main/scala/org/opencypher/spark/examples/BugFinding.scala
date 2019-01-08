@@ -28,11 +28,8 @@ package org.opencypher.spark.examples
 
 import org.apache.spark.sql.types.{LongType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, functions}
-import org.opencypher.okapi.api.graph.GraphName
-import org.opencypher.spark.api.io.sql.IdGenerationStrategy
-import org.opencypher.spark.api.{CAPSSession, GraphSources}
-import org.opencypher.spark.util.HiveSetupForDebug.{baseTableName, createView, databaseName, getClass}
-import org.opencypher.spark.util.{ConsoleApp, HiveSetupForDebug}
+import org.opencypher.spark.api.CAPSSession
+import org.opencypher.spark.util.ConsoleApp
 
 object JoinBug extends ConsoleApp {
 
@@ -66,18 +63,26 @@ object JoinBug extends ConsoleApp {
 
   baseTable.write.saveAsTable(s"$baseTableName")
 
-  // Create views for nodes
-  createView(baseTableName, "interactions", true, "interactionId", "date", "type")
-  createView(baseTableName, "customers", true, "customerIdx", "customerId", "customerName")
-  createView(baseTableName, "customer_reps", true, "empNo", "empName")
+  val customers = session.sparkSession.sql(
+    s"""
+       | SELECT DISTINCT customerIdx, customerId, customerName
+       | FROM $baseTableName
+      """.stripMargin)
 
-  // Create views for relationships
-  createView(baseTableName, "has_customer_reps", false, "interactionId", "empNo")
-  createView(baseTableName, "has_customers", false, "interactionId", "customerIdx")
+//  val customers = Seq(
+//    (1, "W9VU80OL52R", "Neta Whinnery"),
+//    (2, "W9VU80OL52R", "Neta Whinnery"),
+//    (0, "X5CO34AD98M", "Elsa Clukey"),
+//    (3, "R8RY34BW05P", "Wei Rolfe")
+//  ).toDF("customerIdx", "customerId", "customerName")
 
-  val nodes = session.sparkSession.sql(s"SELECT * FROM customers.customers_SEED")
-      .withColumn("id", functions.monotonically_increasing_id() + 0L)
-      .withColumnRenamed("id", "target")
+//  val nodes = session.sparkSession.sql(s"SELECT * FROM customers.customers_SEED")
+//      .withColumn("id", functions.monotonically_increasing_id() + 0L)
+//      .withColumnRenamed("id", "target")
+
+  val nodes = customers
+    .withColumn("id", functions.monotonically_increasing_id() + 0L)
+    .withColumnRenamed("id", "target")
 
   nodes.show()
   nodes.explain(true)
@@ -111,50 +116,4 @@ object JoinBug extends ConsoleApp {
   val rightToLeft: DataFrame = edges.join(nodes, nodes.col("customerIdx") === edges.col("edge_property_customerIdx"))
   rightToLeft.select(sortedCols.head, sortedCols.tail: _*).orderBy("edge_id").show()
 
-}
-
-object BugFinding extends ConsoleApp {
-
-//  PrintDebug.set()
-
-  implicit val session: CAPSSession = CAPSSession.local()
-
-  // Load a CSV file of interactions into Hive tables (views)
-  HiveSetupForDebug.load(false)
-
-  val pgds = GraphSources
-    .sql(file("/customer-interactions/ddl/debug.ddl"))
-    .withIdGenerationStrategy(IdGenerationStrategy.MonotonicallyIncreasingId)
-    .withSqlDataSourceConfigs(file("/customer-interactions/ddl/data-sources.json"))
-
-  val graph = pgds.graph(GraphName("debug"))
-
-//  graph.cypher(
-//    """
-//      |MATCH ()
-//      |RETURN count(*) AS `nodeCount (26 is correct)`
-//    """.stripMargin).show
-
-  graph.cypher(
-    """
-      |MATCH ()-->()
-      |RETURN count(*) AS `relCount (36 is correct)`
-    """.stripMargin).show
-
-//  graph.asInstanceOf[ScanGraph[DataFrameTable]].scans.foreach { scan =>
-//    scan.table.show()
-//  }
-
-//  graph.cypher(
-//    """
-//      |MATCH ()-->()
-//      |RETURN count(*) AS `relCount (36 is correct)`
-//    """.stripMargin).records.asCaps.table.df.explain()
-
-  session.sparkSession.close()
-
-
-  def file(path: String): String = {
-    getClass.getResource(path).toURI.getPath
-  }
 }
