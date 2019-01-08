@@ -26,58 +26,86 @@
  */
 package org.opencypher.spark.examples
 
+import org.apache.spark.sql.types.{LongType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, functions}
-import org.opencypher.okapi.api.configuration.Configuration.PrintDebug
 import org.opencypher.okapi.api.graph.GraphName
-import org.opencypher.okapi.logical.api.configuration.LogicalConfiguration.PrintLogicalPlan
-import org.opencypher.okapi.relational.api.configuration.CoraConfiguration.PrintRelationalPlan
-import org.opencypher.okapi.relational.impl.graph.ScanGraph
 import org.opencypher.spark.api.io.sql.IdGenerationStrategy
 import org.opencypher.spark.api.{CAPSSession, GraphSources}
-import org.opencypher.spark.impl.table.SparkTable.DataFrameTable
+import org.opencypher.spark.util.HiveSetupForDebug.{baseTableName, createView, databaseName, getClass}
 import org.opencypher.spark.util.{ConsoleApp, HiveSetupForDebug}
 
 object JoinBug extends ConsoleApp {
 
-  implicit val session = CAPSSession.local().sparkSession
+  val databaseName = "customers"
+  val baseTableName = s"$databaseName.csv_input"
 
-  import session.sqlContext.implicits._
+  implicit val session = CAPSSession.local()
 
-  val nodes = Seq(
-    (1L),
-    (2L),
-    (0L),
-    (3L)
-  ).toDF( "node_property_CUSTOMERIDX").withColumn("target", functions.monotonically_increasing_id())
+  import session.sparkSession.sqlContext.implicits._
 
-  val edges = Seq(
-    (0L, 0L),
-    (1L, 0L),
-    (2L, 0L),
-    (3L, 0L),
-    (4L, 0L),
-    (5L, 0L),
-    (6L, 1L),
-    (7L, 1L),
-    (8L, 1L),
-    (9L, 1L),
-    (10L, 2L),
-    (11L, 2L),
-    (12L, 2L),
-    (13L, 2L),
-    (14L, 3L),
-    (15L, 3L),
-    (16L, 3L),
-    (17L, 3L)
-  ).toDF("edge_property_interactionId", "edge_property_customerIdx")
-    .withColumn("edge_id", functions.monotonically_increasing_id())
-    .withColumn("edge_source", functions.monotonically_increasing_id() + 100)
+  val datafile = getClass.getResource("/customer-interactions/csv/debug.csv").toURI.getPath
+  val structType = StructType(Seq(
+    StructField("interactionId", LongType, nullable = false),
+    StructField("date", StringType, nullable = false),
+    StructField("customerIdx", LongType, nullable = false),
+    StructField("empNo", LongType, nullable = false),
+    StructField("empName", StringType, nullable = false),
+    StructField("type", StringType, nullable = false),
+    StructField("customerId", StringType, nullable = false),
+    StructField("customerName", StringType, nullable = false)
+  ))
 
-  val leftToRight: DataFrame = nodes.join(edges, nodes.col("node_property_CUSTOMERIDX") === edges.col("edge_property_CUSTOMERIDX"))
-  val sortedCols = leftToRight.columns.sorted.toSeq
-  leftToRight.select(sortedCols.head, sortedCols.tail: _*).orderBy("edge_id").show()
-  val rightToLeft: DataFrame = edges.join(nodes, nodes.col("node_property_CUSTOMERIDX") === edges.col("edge_property_CUSTOMERIDX"))
-  rightToLeft.select(sortedCols.head, sortedCols.tail: _*).orderBy("edge_id").show()
+  val baseTable: DataFrame = session.sparkSession.read
+    .format("csv")
+    .option("header", "true")
+    .schema(structType)
+    .load(datafile)
+
+  session.sql(s"DROP DATABASE IF EXISTS $databaseName CASCADE")
+  session.sql(s"CREATE DATABASE $databaseName")
+
+  baseTable.write.saveAsTable(s"$baseTableName")
+
+  // Create views for nodes
+  createView(baseTableName, "interactions", true, "interactionId", "date", "type")
+  createView(baseTableName, "customers", true, "customerIdx", "customerId", "customerName")
+  createView(baseTableName, "customer_reps", true, "empNo", "empName")
+
+  // Create views for relationships
+  createView(baseTableName, "has_customer_reps", false, "interactionId", "empNo")
+  createView(baseTableName, "has_customers", false, "interactionId", "customerIdx")
+
+  val nodes = session.sparkSession.sql(s"SELECT * FROM $baseTableName").select(
+    "customerIdx",
+    "customerId",
+    "customerName"
+  )
+      .distinct
+      .withColumn("id", functions.monotonically_increasing_id() + 0L)
+      .withColumnRenamed("id", "target")
+
+  nodes.show()
+  nodes.explain(true)
+
+//  val nodes = Seq(
+//    (1L),
+//    (2L)
+//  ).toDF( "node_customerIdx").withColumn("id", functions.monotonically_increasing_id())
+//    .withColumnRenamed("id", "target")
+
+//  val edges = Seq(
+//    (6L, 1L),
+//    (7L, 1L),
+//    (8L, 1L)
+//  ).toDF("interactionId", "rel_customerIdx")
+//    .withColumn("edge_id", functions.monotonically_increasing_id())
+//    .filter(functions.not(functions.isnull(functions.col("interactionId"))))
+//
+//  val leftToRight: DataFrame = nodes.join(edges, nodes.col("node_customerIdx") === edges.col("rel_customerIdx"))
+//  val sortedCols = leftToRight.columns.sorted.toSeq
+//  leftToRight.select(sortedCols.head, sortedCols.tail: _*).orderBy("edge_id").show()
+//  val rightToLeft: DataFrame = edges.join(nodes, nodes.col("node_customerIdx") === edges.col("rel_customerIdx"))
+//  rightToLeft.select(sortedCols.head, sortedCols.tail: _*).orderBy("edge_id").show()
 
 }
 

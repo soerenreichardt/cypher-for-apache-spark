@@ -172,10 +172,6 @@ case class SqlPropertyGraphDataSource(
     val namespacedJoinColumns = joinColumns
       .map(join => Join(nodePrefix + join.nodeColumn.toPropertyColumnName, edgePrefix + join.edgeColumn.toPropertyColumnName))
 
-    val joinPredicate = namespacedJoinColumns
-      .map(join => namespacedNodeDf.col(join.nodeColumn) === namespacedEdgeDf.col(join.edgeColumn))
-      .reduce(_ && _)
-
     val nodeIdColumnName = nodePrefix + sourceIdKey
 
     /*
@@ -186,20 +182,34 @@ case class SqlPropertyGraphDataSource(
     val nodes = namespacedNodeDf
       .select(nodeIdColumnName, namespacedJoinColumns.map(_.nodeColumn): _*)
       .withColumnRenamed(nodeIdColumnName, newNodeIdColumn)
-    val edgeDfWithNodesJoined = namespacedEdgeDf
-      .join(nodes, joinPredicate)
 
-    println("DEBUG")
 
-    val test = nodes.join(namespacedEdgeDf, joinPredicate)
+    import scala.collection.JavaConverters._
+    val nodesColumns = nodes.columns
+    val nodesWithoutExpr = caps.sparkSession.sqlContext.createDataFrame(nodes.collect().toList.asJava, nodes.schema)
 
     println("nodes")
     nodes.show
     nodes.explain(true)
 
+    println("nodesWithoutExpr")
+    nodesWithoutExpr.show
+    nodesWithoutExpr.explain(true)
+
     println("edges")
     namespacedEdgeDf.show
     namespacedEdgeDf.explain(true)
+
+    val joinPredicate = namespacedJoinColumns
+      .map(join => nodes.col(join.nodeColumn) === namespacedEdgeDf.col(join.edgeColumn))
+      .reduce(_ && _)
+
+    val edgeDfWithNodesJoined = nodes
+      .join(namespacedEdgeDf, joinPredicate)
+
+    println("DEBUG")
+
+    val test = namespacedEdgeDf.join(nodes, joinPredicate)
 
     println(s"join edge -> node on ${joinPredicate.toString}")
     edgeDfWithNodesJoined.show
